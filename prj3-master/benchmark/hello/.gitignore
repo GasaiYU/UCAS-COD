@@ -1,0 +1,9 @@
+#
+# Generated temporary files
+#
+
+bin/
+disassembly/
+raw/
+sim/
+

@@ -1,0 +1,172 @@
+stages:
+  - rtl_chk
+  - bhv_sim
+  - run_syn
+  - bit_gen
+  - fpga_eval
+  - repo_push
+
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+default:
+  image: gitlab.agileserve.org.cn:15050/zelin/vivado-ci-tools/vivado-vnc-ci-multistage:v2.5
+  tags: 
+    - k8s
+  before_script:
+    - cd flow 
+
+repo_push:
+  stage: repo_push
+  script:
+    - echo "Commits have been pushed to master branch."
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "master"
+
+reg_file_rtl_chk:
+  stage: rtl_chk
+  script:
+    - make HW_ACT=rtl_chk HW_VAL=reg_file CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "reg_file_dev"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/hardware/vivado_out/run_log
+
+alu_rtl_chk:
+  stage: rtl_chk
+  script:
+    - make HW_ACT=rtl_chk HW_VAL=alu CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "alu_dev"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/hardware/vivado_out/run_log
+
+reg_file_bhv_sim:
+  stage: bhv_sim
+  script:
+    - make HW_ACT=bhv_sim HW_VAL="reg_file 2" CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "reg_file_dev"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/hardware/vivado_out/sim
+      - flow/hardware/vivado_out/run_log
+
+alu_bhv_sim:
+  stage: bhv_sim
+  script:
+    - make HW_ACT=bhv_sim HW_VAL="alu 10" CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "alu_dev"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/hardware/vivado_out/sim
+      - flow/hardware/vivado_out/run_log
+
+reg_file_run_syn:
+  stage: run_syn
+  script:
+    - make HW_ACT=run_syn HW_VAL=reg_file CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "reg_file_dev"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/hardware/vivado_out/synth_rpt
+      - flow/hardware/vivado_out/run_log
+
+alu_run_syn:
+  stage: run_syn
+  script:
+    - make HW_ACT=run_syn HW_VAL=alu CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "alu_dev"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/hardware/vivado_out/synth_rpt
+      - flow/hardware/vivado_out/run_log
+
+reg_file_bit_gen:
+  stage: bit_gen
+  script:
+    - make HW_ACT=bit_gen HW_VAL=reg_file CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "reg_file_run"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/hardware/vivado_out/impl_rpt
+      - flow/hw_plat/
+      - flow/hardware/vivado_out/run_log
+
+alu_bit_gen:
+  stage: bit_gen
+  script:
+    - make HW_ACT=bit_gen HW_VAL=alu CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "alu_run"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/hardware/vivado_out/impl_rpt
+      - flow/hw_plat/
+      - flow/hardware/vivado_out/run_log
+
+reg_file_fpga_eval:
+  stage: fpga_eval
+  tags:
+    - nf
+  script:
+    - mkdir -p ./run/log 
+    - cd run/
+    - bash ci_run.sh reg_file | tee ./log/cloud_run.log
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "reg_file_run"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/run/log/
+
+alu_fpga_eval:
+  stage: fpga_eval
+  tags:
+    - nf
+  script:
+    - mkdir -p ./run/log 
+    - cd run/
+    - bash ci_run.sh alu | tee ./log/cloud_run.log
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "alu_run"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - flow/run/log/
+
